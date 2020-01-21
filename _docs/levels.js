@@ -6,6 +6,239 @@ function init() {
   });
 }
 
+let Node = function (x, y) {
+  this.x = x;
+  this.y = y;
+  this.g = 0; // 到起点的长度
+  this.h = 0; // 到终点的长度
+  this.p = null; // 父节点
+}
+
+/**
+ * 实现一个最小堆，方便从OpenSet中选择最小代价的点
+ */
+let heapMin = function () {
+  this.set = [];
+}
+
+heapMin.prototype.adjust = function (index) {
+  let len = this.set.length,
+      l = index * 2 + 1,
+      r = index * 2 + 2,
+      min = index,
+      node = null;
+
+  if (l <= len-1 && this.set[min].g + this.set[min].h > this.set[l].g + this.set[l].h) {  
+    min = l;  
+  }  
+  if (r <= len-1 && this.set[min].g + this.set[min].h > this.set[r].g + this.set[r].h) {  
+    min = r;  
+  }
+
+  // 如果min发生改变，则需要进行交换，并继续递归min子树
+  if (min != index){
+    node = this.set[min];
+    this.set[min] = this.set[index];
+    this.set[index] = node;
+    this.adjust(min);  
+  }
+}
+
+/**
+ * 向最小堆中添加一个元素
+ */
+heapMin.prototype.push = function(node) {
+  // 添加到数组尾部
+  this.set.push(node);
+
+  // 调整堆
+  for (let i = Math.floor(this.set.length / 2) - 1; i >= 0 ; i--) {  
+      this.adjust(i);  
+  }
+
+}
+
+/**
+ * 从最小堆中移除顶部元素
+ */
+heapMin.prototype.pop = function () {
+  // 移除顶部元素，为最小元素
+  let node = this.set.shift();
+
+  // 调整堆
+  this.adjust(0); 
+
+  return node;
+}
+
+/**
+ * 检查堆是否为空
+ */
+heapMin.prototype.empty = function () {
+  return this.set.length > 0 ? false : true;
+}
+
+/**
+ * 检查堆是否包含指定元素
+ */
+heapMin.prototype.contain = function (node) {
+  for (let len = this.set.length, i = 0; i < len; i++) {
+    if (this.set[i].x === node.x && this.set[i].y === node.y) return true;
+  }
+  return false;
+}
+
+/**
+ * Set类
+ */
+function HashSet(){
+  this.set = [];
+}
+
+HashSet.prototype.push = function (node) {
+  this.set.push(node);
+}
+
+HashSet.prototype.pop = function () {
+  return this.set.pop();
+}
+
+HashSet.prototype.contain = function (node) {
+  for (let len = this.set.length, i = 0; i < len; i++) {
+    if (this.set[i].x === node.x && this.set[i].y === node.y) return true;// 存在
+  }
+  return false;
+}
+
+/**
+ * AStarPathFinding
+ * 
+ * W：地图的宽度
+ * H：地图的高度
+ * map：地图数组，0表示可以通过，1表示不可以通过
+ *
+ */
+function AStarPathFinding (W, H, map) {
+  this.W = W;// 地图的宽度
+  this.H = H;// 地图的高度
+  this.map = map;// 地图
+}
+
+/**
+ * 计算距离
+ *
+ * 采用曼哈顿估量算法
+ */
+function calcDistance (startNode, endNode) {
+  return (startNode && endNode) ?
+          Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y)
+          :
+          -1;
+}
+
+/**
+ * 查找邻居点
+ *
+ * 返回邻居点数组
+ */
+AStarPathFinding.prototype.getNeighbors = function (node) {
+  let arr = [],
+      x,y;
+
+  for (let i = -1; i < 2; i++) {
+    for (let j = -1; j < 2; j++) {
+      if ((i == 0 && j == 0) || (i === j) || (i === -j)) continue;
+      x = node.x + i;
+      y = node.y + j;
+      if (x < this.W && x > -1 && y < this.H && y > -1) {
+        arr.push(new Node(x, y));
+      }
+    }
+  }
+
+  return arr;
+}
+
+/**
+ * 查找路径
+ *
+ * 1 初始化起始点，计算g，h
+ * 2 将起始点加入到OpenSet中
+ * 3 当OpenSet不为空的时候，进入循环
+ * 3.1 从OpenSet中取出最小点，设为当前点
+ * 3.2 循环遍历当前点的邻居点
+ * 3.2.1 如果邻居点不可通过（为墙壁）或者已经在CloseSet中，就略过continue
+ * 3.2.2 如果不在OpenSet中，计算FGH数值，并加入到CloseSet的尾部
+ * 3.3 循环遍历邻居点结束
+ * 4 OpenSet循环结束
+ */
+AStarPathFinding.prototype.findPath = function (startNode, endNode){
+  let OpenSet = new heapMin(),
+      CloseSet = new HashSet(),
+      curNode = null;
+
+  OpenSet.push(startNode);
+
+  // 循环遍历OpenSet直到为空
+  while (!OpenSet.empty()) {
+    curNode = OpenSet.pop();
+    CloseSet.push(curNode);
+
+    if (curNode.x === endNode.x && curNode.y === endNode.y) { return CloseSet.set;}
+
+    let arr = this.getNeighbors(curNode);
+
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (this.map[ arr[i].y ][ arr[i].x ] === 1 || CloseSet.contain(arr[i])) continue;
+
+      // 不存在，加入到OpenSet集合
+      if (!OpenSet.contain(arr[i])) {
+        arr[i].g = calcDistance(arr[i], startNode);
+        arr[i].h = calcDistance(arr[i], endNode);
+        // 更新父节点，便于之后路径查找
+        arr[i].p = curNode;
+        OpenSet.push(arr[i]);
+      }
+
+    }
+
+  }
+
+  return null;
+
+}
+
+/**
+ * 打印寻路结果地图
+ */
+AStarPathFinding.prototype.printMap = function(s, e){
+  if (s.x < 0 || s.x > this.W-1 || s.y < 0 || s.y > this.H-1 || e.x < 0 || e.x > this.W-1 || e.y < 0 || e.y > this.H-1)
+    return;
+  let arr = this.findPath(s, e);
+
+  if (arr == null) {
+    console.log('Not found Path...');
+    return;
+  } 
+
+  let map = this.map.slice(),
+      node = arr.pop();
+
+  while(node !== null) {
+    map[node.y][node.x] = ((s.x === node.x && s.y === node.y ) || (e.x === node.x && e.y === node.y )) ? '+' : '*';
+    node = node.p;
+  }
+
+  for (let i = this.H-1; i>=0; i--) {
+    let temp = [];
+    for (let j = 0; j < this.W; j++) {
+      temp[j] = map[i][j];
+    }
+    console.log(temp.join(' '));
+  }
+
+}
+
 function intersect(l1_p1_x, l1_p1_y, l1_p2_x, l1_p2_y, l2_p1_x, l2_p1_y, l2_p2_x, l2_p2_y) {
   let s1_x = l1_p2_x - l1_p1_x;
   let s1_y = l1_p2_y - l1_p1_y;
@@ -81,6 +314,7 @@ function showCallback(levelId) {
       col = col % mapWidth;
     }
     return `${alphabets[col]}${mapHeight-row}`;
+	//return mapWidth*row+col;
   }
 
   // Token
@@ -183,29 +417,28 @@ function showCallback(levelId) {
       let [c0, r0, x0, y0] = checkpoints[i];
       let [c1, r1, x1, y1] = checkpoints[i + 1];
 
-      if (c0 > c1)[c0, c1] = [c1, c0];
-      if (r0 > r1)[r0, r1] = [r1, r0];
+      //if (c0 > c1)[c0, c1] = [c1, c0];
+      //if (r0 > r1)[r0, r1] = [r1, r0];
 
-      let checker = [];
-      for (let x = c0; x < c1; x++)
-        for (let y = r0; y <= r1; y++) {
-          checker.push([x + 1, y, x + 1, y + 1, x, y, x + 1, y]);
-        }
-      for (let x = c0; x <= c1; x++)
-        for (let y = r0; y < r1; y++) {
-          checker.push([x, y + 1, x + 1, y + 1, x, y, x, y + 1]);
-        }
 
-      for (let line of checker) {
-        if (intersect(x0, y0, x1, y1, line[0], line[1], line[2], line[3])) {
-          subTiles.push(line[4] + line[5] * mapWidth);
-          subTiles.push(line[6] + line[7] * mapWidth);
-        }
-      }
+	  let pmap = levelData.mapData.map.slice().reverse().map(arr => {
+		return arr.map(x => levelData.mapData.tiles[x].passableMask == 3 ? 0 : 1);
+	  });
+	  var pf = new AStarPathFinding(mapWidth,mapHeight,pmap);
+	  //pf.printMap(new Node(c0,r0),new Node(c1,r1));
+	  let arr = pf.findPath(new Node(c0,r0),new Node(c1,r1));
+	  if(arr != null) {
+		let node = arr.pop();
+		while(node !== null) {
+		  subTiles.push(node.y*mapWidth+node.x);
+		  node = node.p;
+		}
+	  }
+	  subTiles.reverse();
 
       if (data.motionMode == 0) {
         let wrong = subTiles.some(x => levelData.mapData.tiles[x].passableMask !== 3);
-        //if (wrong) console.log(`begin: ${checkpoints[i]}, end:${checkpoints[i + 1]}, tiles:${subTiles}`);
+        if (wrong) console.log(`begin: ${checkpoints[i]}, end:${checkpoints[i + 1]}, tiles:${subTiles}`);
       }
 
       tiles.push(...subTiles);
