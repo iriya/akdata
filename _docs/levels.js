@@ -631,7 +631,7 @@ function showCallback(levelId) {
   };
 
   let tileAttr = '', hardAttr = '';
-  if (hasHard) {
+  if (hasHard) {/*
     hardAttr += levelData.runes
       .find(x => x.key === 'ebuff_attribute')
       .blackboard
@@ -643,7 +643,7 @@ function showCallback(levelId) {
       .join('');
     hardAttr += levelData.runes.filter(x => x.key === 'ebuff_attribute' && x.blackboard[0].key === 'enemy' )
       .flatMap(x=> x.blackboard.filter(x=>x.key!=='enemy').map(y=>`<li>${finalEnemyData[x.blackboard[0].valueStr].name}: ${hardAttrLabel[y.key]||y.key}: ${(y.value*100).toFixed()}%</li>`))
-      .join('');
+      .join('');*/
     hardStageData.isHard = true;
   }
 
